@@ -11,7 +11,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: '日语数字朗读练习',
+      title: '便利店レジ模拟器',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
@@ -44,7 +44,8 @@ class _PracticePageState extends State<PracticePage> {
   Timer? timer;
 
   void _generateRandomNumber() {
-    currentNumber = (0 + (10000 * (1.0 * (DateTime.now().millisecondsSinceEpoch % 1000) / 1000)).toInt());
+    // 生成 1 到 9999 的随机数，排除 0
+    currentNumber = (1 + (9999 * (1.0 * (DateTime.now().millisecondsSinceEpoch % 1000) / 1000)).toInt());
   }
 
   void _startGame() {
@@ -52,6 +53,7 @@ class _PracticePageState extends State<PracticePage> {
       gameStarted = true;
       currentQuestion = 1;
       correctCount = 0;
+      gameEnded = false; // 确保重新开始时游戏结束状态为 false
     });
     _startNewQuestion();
   }
@@ -72,7 +74,7 @@ class _PracticePageState extends State<PracticePage> {
         countdown--;
         if (countdown <= 0) {
           timer?.cancel();
-          _revealAnswer(autoFail: true);
+          _revealAnswer(autoFail: true); // 时间到自动揭示答案并判错
         }
       });
     });
@@ -82,7 +84,7 @@ class _PracticePageState extends State<PracticePage> {
     setState(() {
       revealed = true;
       if (autoFail) {
-        answered = true;
+        answered = true; // 时间到也算是“回答”了，只是自动判错
         isCorrect = false;
         timeUp = true;
       }
@@ -91,11 +93,12 @@ class _PracticePageState extends State<PracticePage> {
   }
 
   void _submit(bool correct) {
-    if (answered) return;
+    if (answered) return; // 避免重复提交
     setState(() {
       answered = true;
       isCorrect = correct;
       if (correct) correctCount++;
+      timer?.cancel(); // 提交答案后停止计时
     });
   }
 
@@ -103,7 +106,9 @@ class _PracticePageState extends State<PracticePage> {
     if (currentQuestion >= 20) {
       setState(() {
         gameEnded = true;
+        gameStarted = false; // 游戏结束后，将 gameStarted 设为 false，以显示结束界面
       });
+      timer?.cancel(); // 游戏结束时停止计时
       return;
     }
     setState(() {
@@ -119,6 +124,11 @@ class _PracticePageState extends State<PracticePage> {
       correctCount = 0;
       gameStarted = false;
       gameEnded = false;
+      revealed = false;
+      answered = false;
+      isCorrect = false;
+      timeUp = false;
+      countdown = 5;
     });
   }
 
@@ -130,46 +140,60 @@ class _PracticePageState extends State<PracticePage> {
 
   @override
   Widget build(BuildContext context) {
-    if (!gameStarted) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('便利店レジ模拟器')),
-        body: Center(
-          child: ElevatedButton(
-            onPressed: _startGame,
-            child: const Text('点击开始'),
-          ),
+    Widget currentBody;
+    AppBar currentAppBar;
+
+    if (!gameStarted && !gameEnded) { // 初始启动界面
+      currentAppBar = AppBar(title: const Text('便利店レジ模拟器'));
+      currentBody = Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text(
+              '对日语数字发音感到苦恼？那你来做题！',
+              style: TextStyle(fontSize: 20),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              '在5秒内读出数字的日语发音，结果由你自己来评判',
+              style: TextStyle(fontSize: 16, color: Colors.grey),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+            // 请确保 assets/baito.jpg 存在，并在 pubspec.yaml 中配置
+            Image.asset('assets/baito.jpg', width: 300),
+            const SizedBox(height: 40),
+            ElevatedButton(
+              onPressed: _startGame,
+              child: const Text('点击开始'),
+            ),
+          ],
         ),
       );
-    }
-
-    if (gameEnded) {
+    } else if (gameEnded) { // 游戏结束界面
       final scoreRate = (correctCount / 20 * 100).toStringAsFixed(1);
-      return Scaffold(
-        appBar: AppBar(title: const Text('答题结束')),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text('🎉 答题结束 🎉', style: Theme.of(context).textTheme.headlineLarge),
-              const SizedBox(height: 20),
-              Text('总得分：$correctCount / 20', style: const TextStyle(fontSize: 24)),
-              const SizedBox(height: 10),
-              Text('正确率：$scoreRate%', style: const TextStyle(fontSize: 20)),
-              const SizedBox(height: 30),
-              ElevatedButton(
-                onPressed: _resetGame,
-                child: const Text('重新开始'),
-              ),
-            ],
-          ),
+      currentAppBar = AppBar(title: const Text('便利店レジ模拟器'));
+      currentBody = Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text('🎉 答题结束 🎉', style: Theme.of(context).textTheme.headlineLarge),
+            const SizedBox(height: 20),
+            Text('总得分：$correctCount / 20', style: const TextStyle(fontSize: 24)),
+            const SizedBox(height: 10),
+            Text('正确率：$scoreRate%', style: const TextStyle(fontSize: 20)),
+            const SizedBox(height: 30),
+            ElevatedButton(
+              onPressed: _resetGame,
+              child: const Text('重新开始'),
+            ),
+          ],
         ),
       );
-    }
-
-    final kana = getKana(currentNumber);
-
-    return Scaffold(
-      appBar: AppBar(
+    } else { // 游戏进行中界面
+      final kana = getKana(currentNumber);
+      currentAppBar = AppBar(
         title: const Text('便利店レジ模拟器'),
         actions: [
           Padding(
@@ -177,18 +201,18 @@ class _PracticePageState extends State<PracticePage> {
             child: Text('$correctCount / $currentQuestion'),
           ),
         ],
-      ),
-      body: Center(
+      );
+      currentBody = Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              '第 $currentQuestion 题：$currentNumber',
+              '第 $currentQuestion 题：$currentNumber 円',
               style: const TextStyle(fontSize: 28),
             ),
             const SizedBox(height: 12),
             Text(
-              revealed ? '假名读音：$kana' : '假名读音：？？？',
+              revealed ? '假名读音：${kana} えん' : '假名读音：？？？',
               style: const TextStyle(fontSize: 24),
             ),
             const SizedBox(height: 8),
@@ -201,7 +225,7 @@ class _PracticePageState extends State<PracticePage> {
             if (!revealed)
               ElevatedButton(
                 onPressed: _revealAnswer,
-                child: const Text('点击查看读音'),
+                child: Text('点击查看读音 (${countdown}s)'),
               )
             else if (!answered && !timeUp)
               Row(
@@ -212,7 +236,7 @@ class _PracticePageState extends State<PracticePage> {
                     style: ButtonStyle(
                       backgroundColor: WidgetStateProperty.all(Colors.green),
                     ),
-                    child: const Text('✔️ 正确'),
+                    child: const Text('〇 正确'),
                   ),
                   const SizedBox(width: 16),
                   ElevatedButton(
@@ -220,16 +244,44 @@ class _PracticePageState extends State<PracticePage> {
                     style: ButtonStyle(
                       backgroundColor: WidgetStateProperty.all(Colors.red),
                     ),
-                    child: const Text('❌ 错误'),
+                    child: const Text('✕ 错误'),
                   ),
                 ],
               )
-            else
+            else if (timeUp)
+              Column(
+                children: [
+                  const Text(
+                    '时间到！判定为错误。',
+                    style: TextStyle(fontSize: 18, color: Colors.red),
+                  ),
+                  const SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: _nextQuestion,
+                    child: const Text('下一题'),
+                  ),
+                ],
+              )
+            else // 此处已移除多余的括号
               ElevatedButton(
                 onPressed: _nextQuestion,
                 child: const Text('下一题'),
               ),
-          ],
+          ], // 修复：这里的 Column 的闭合括号和其后的 Scaffold 的闭合括号之间多了一个额外的逗号和括号。
+        ), // 这是 Column 的闭合括号
+      ); // 这是 Center 的闭合括号
+    } // 这是 else 块的闭合括号
+
+    // 统一返回一个 Scaffold，并将作者信息放在 bottomNavigationBar
+    return Scaffold(
+      appBar: currentAppBar,
+      body: currentBody,
+      bottomNavigationBar: const Padding(
+        padding: EdgeInsets.all(8.0),
+        child: Text(
+          'Powered by Chamyu & LLMs',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: Colors.grey),
         ),
       ),
     );
@@ -238,11 +290,17 @@ class _PracticePageState extends State<PracticePage> {
 
 // 自动生成日语假名
 String getKana(int number) {
-  if (number == 0) return 'ぜろ';
+  // 由于随机数范围已调整为 1-9999，理论上不会传入 0。
+  // 但为了函数的健壮性，如果传入 0 仍然可以返回 'ゼロ'。
+  if (number == 0) return 'ゼロ';
 
+  // 确保所有假名都正确，没有罗马字
   final ones = ['', 'いち', 'に', 'さん', 'よん', 'ご', 'ろく', 'なな', 'はち', 'きゅう'];
   final hundreds = ['', 'ひゃく', 'にひゃく', 'さんびゃく', 'よんひゃく', 'ごひゃく', 'ろっぴゃく', 'ななひゃく', 'はっぴゃく', 'きゅうひゃく'];
   final thousands = ['', 'せん', 'にせん', 'さんぜん', 'よんせん', 'ごせん', 'ろくせん', 'ななせん', 'はっせん', 'きゅうせん'];
+
+  // tens 数组并没有实际被使用，这里加上并注释
+  // final tens = ['', 'じゅう', 'にじゅう', 'さんじゅう', 'よんじゅう', 'ごじゅう', 'ろくじゅう', 'ななじゅう', 'はちじゅう', 'きゅうじゅう'];
 
   int thou = number ~/ 1000;
   int hund = (number % 1000) ~/ 100;

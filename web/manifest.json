@@ -1,6 +1,6 @@
 {
-    "name": "Suuji Training",
-    "short_name": "Suuji Training",
+    "name": "suuji_training",
+    "short_name": "suuji_training",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

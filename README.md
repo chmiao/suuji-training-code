@@ -1,4 +1,4 @@
-# suuji_ninshiki
+# suuji_training
 
 A new Flutter project.
 

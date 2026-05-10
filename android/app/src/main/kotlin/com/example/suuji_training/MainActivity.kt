@@ -1,4 +1,4 @@
-package com.example.suuji_ninshiki
+package com.example.suuji_training
 
 import io.flutter.embedding.android.FlutterActivity
 
